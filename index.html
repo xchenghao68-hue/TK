@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Content Loading</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, system-ui, sans-serif;
+        }
+        /* 首页加载样式 */
+        .main-page {
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #f6f7f9;
+            color: #555;
+            font-size: 18px;
+        }
+        /* 统计面板样式 */
+        .stats-panel {
+            display: none;
+            width: 100%;
+            min-height: 100vh;
+            background: #ffffff;
+            padding: 30px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h2 {
+            color: #222;
+            margin-bottom: 25px;
+            text-align: center;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .card h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+        .item {
+            line-height: 2;
+            color: #444;
+            font-size: 15px;
+        }
+        .btn-group {
+            text-align: center;
+            margin-top: 30px;
+        }
+        button {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 0 8px;
+        }
+        .btn-clear {
+            background: #dc3545;
+            color: #fff;
+        }
+        .btn-back {
+            background: #6c757d;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <!-- 首页加载页面 -->
+    <div class="main-page" id="mainPage">
+        Loading, please wait...
+    </div>
+
+    <!-- 美化统计面板 -->
+    <div class="stats-panel" id="statsPanel">
+        <div class="container">
+            <h2>投放数据统计面板</h2>
+            <div class="card">
+                <h3>整体访问数据</h3>
+                <div class="item">总访问次数：<span id="totalNum">0</span></div>
+                <div class="item">移动端访问：<span id="mobileNum">0</span></div>
+            </div>
+
+            <div class="card">
+                <h3>国家/地区分布</h3>
+                <div id="countryList" class="item"></div>
+            </div>
+
+            <div class="card">
+                <h3>TG链接分流数据</h3>
+                <div id="tgList" class="item"></div>
+            </div>
+
+            <div class="btn-group">
+                <button class="btn-clear" onclick="clearStats()">清空统计数据</button>
+                <button class="btn-back" onclick="backToMain()">返回首页</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+// ===================== 【配置区 仅修改此处】 =====================
+// 允许跳转的国家码（大写）
+const ALLOW_COUNTRIES = ['US','GB','MY','SG','ID','PH','TH','AU'];
+// 多TG分流链接
+const TG_LINKS = [
+    "https://t.me/你的TG群1",
+    "https://t.me/你的TG群2",
+    "https://t.me/你的TG群3"
+];
+// 跳转延迟 单位：毫秒
+const JUMP_DELAY = 1800;
+// 查看统计面板密码
+const STATS_PASSWORD = "123456";
+// =================================================================
+
+// 初始化本地存储统计数据
+let STATS = JSON.parse(localStorage.getItem('tk_stats') || '{"total":0,"mobile":0,"countries":{},"tg":{}}');
+
+// 设备判断：仅移动端放行
+function isMobile() {
+    return /Android|iPhone|iPod|Mobile/i.test(navigator.userAgent);
+}
+
+// 获取访客国家码
+async function getCountry() {
+    try {
+        const res = await fetch('https://ipapi.co/country_code/');
+        return (await res.text()).trim();
+    } catch (e) {
+        return 'OTHER';
+    }
+}
+
+// 随机选取分流链接
+function getRandomTg() {
+    return TG_LINKS[Math.floor(Math.random() * TG_LINKS.length)];
+}
+
+// 写入统计数据到本地存储
+function recordStats(country, isMob, tg) {
+    STATS.total++;
+    if (isMob) STATS.mobile++;
+    STATS.countries[country] = (STATS.countries[country] || 0) + 1;
+    STATS.tg[tg] = (STATS.tg || 0) + 1;
+    localStorage.setItem('tk_stats', JSON.stringify(STATS));
+}
+
+// 渲染统计面板数据
+function renderStats() {
+    document.getElementById('totalNum').innerText = STATS.total;
+    document.getElementById('mobileNum').innerText = STATS.mobile;
+
+    // 渲染国家列表
+    let countryHtml = '';
+    Object.entries(STATS.countries).forEach(([code, num]) => {
+        countryHtml += `${code} ：${num} 次<br>`;
+    });
+    document.getElementById('countryList').innerHTML = countryHtml || '暂无数据';
+
+    // 渲染分流链接列表
+    let tgHtml = '';
+    Object.entries(STATS.tg).forEach(([link, num]) => {
+        tgHtml += `${link} ：${num} 次<br>`;
+    });
+    document.getElementById('tgList').innerHTML = tgHtml || '暂无数据';
+}
+
+// 打开统计面板
+function openStatsPanel() {
+    const pwd = prompt('请输入统计查看密码');
+    if (pwd !== STATS_PASSWORD) {
+        alert('密码错误！');
+        return;
+    }
+    renderStats();
+    document.getElementById('mainPage').style.display = 'none';
+    document.getElementById('statsPanel').style.display = 'block';
+}
+
+// 返回首页
+function backToMain() {
+    document.getElementById('statsPanel').style.display = 'none';
+    document.getElementById('mainPage').style.display = 'flex';
+}
+
+// 清空统计数据（二次确认防误触）
+function clearStats() {
+    if (!confirm('确定要清空所有统计数据吗？此操作不可恢复！')) return;
+    STATS = {"total":0,"mobile":0,"countries":{},"tg":{}};
+    localStorage.setItem('tk_stats', JSON.stringify(STATS));
+    renderStats();
+    alert('数据已清空');
+}
+
+// 快捷键：按下 S 键 唤起密码弹窗，进入统计面板
+document.addEventListener('keydown', e => {
+    if (e.key.toLowerCase() === 's') {
+        openStatsPanel();
+    }
+});
+
+// 主业务逻辑
+(async function () {
+    const mob = isMobile();
+    const country = await getCountry();
+    const tgLink = getRandomTg();
+
+    // 记录访问数据
+    recordStats(country, mob, tgLink);
+
+    // 非移动端 / 非目标国家，不跳转
+    if (!mob || !ALLOW_COUNTRIES.includes(country)) return;
+
+    // 延迟跳转至TG
+    setTimeout(() => {
+        window.location.href = tgLink;
+    }, JUMP_DELAY);
+})();
+</script>
+</body>
+</html>
